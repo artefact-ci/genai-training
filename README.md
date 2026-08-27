@@ -1,6 +1,6 @@
 # GenAI Training
 
-Un programme de formation couvrant les fondamentaux et l'application pratique de la GenAI, des concepts fondamentaux aux systèmes conversationnels prêts pour la production.
+Le programme de formation couvre les fondamentaux et l'application pratique de la GenAI, des concepts fondamentaux aux systèmes conversationnels prêts pour la mise en production.
 
 ## Plan du programme
 

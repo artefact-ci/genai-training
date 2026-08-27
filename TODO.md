@@ -2,7 +2,7 @@
 
 Checklist des travaux à préparer pour le programme de formation GenAI, organisée par chapitre.
 
-## 1. Fondamentaux — IA générative & ingénierie des prompts
+## 1. Fondamentaux — IA générative & Prompt Engineering
 
 * [ ] Définir les objectifs pédagogiques et le niveau du public cible
 * [ ] Rédiger une introduction aux concepts de l’IA générative (LLM, tokens, embeddings, context window)

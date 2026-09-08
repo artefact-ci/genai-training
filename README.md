@@ -1,27 +1,76 @@
 # GenAI Training
 
-A training program covering the foundations and practical application of Generative AI, from core concepts to production-grade conversational systems.
+Formation de 5 jours sur l'IA générative appliquée, des fondamentaux jusqu'à un système
+conversationnel de qualité production.
 
-## Program Outline
+- **Public** : développeurs et data scientists, à l'aise en Python.
+- **Format** : 5 jours, environ 40 % d'exposé et 60 % de travaux pratiques.
+- **Langue** : supports en français, code et commentaires en anglais.
+- **Fil rouge** : un assistant de support client e-commerce, construit incrémentalement
+  d'un chapitre à l'autre. Voir [fil-rouge/](fil-rouge/README.md).
 
-### 1. Fundamentals — GenAI & Prompt Engineering
-Core concepts of generative AI and large language models, along with prompt engineering techniques to design effective, reliable prompts.
+## Programme
 
-### 2. AI Agents with LangChain / LangGraph
-Building autonomous and semi-autonomous agents using LangChain and LangGraph, covering tool use, orchestration, and multi-step reasoning workflows.
+| # | Chapitre | Contenu |
+|---|---|---|
+| 0 | Environnement & harness agentique | Développement assisté par agent avec Claude Code : boucle agentique, contexte, permissions, extensions. |
+| 1 | Fondamentaux GenAI & prompt engineering | LLM, tokens, embeddings, fenêtre de contexte ; techniques de prompting ; sorties structurées ; coût, latence et choix de modèle. |
+| 2 | Évaluer un système GenAI | Jeux de test, métriques, LLM-as-judge, détection de régression. |
+| 3 | RAG & données métier | Ingestion, découpage, embeddings, bases vectorielles, évaluation de la recherche. |
+| 4 | Agents & orchestration | Tool calling, boucle de raisonnement, orchestration multi-étapes avec LangGraph, agentic RAG. |
+| 5 | Conception conversationnelle | Design de dialogue, mémoire, gestion des impasses, tests de flux. |
+| 6 | Intégration multicanale, sécurité & gouvernance | Canaux, authentification, injection de prompt, confidentialité, observabilité. |
 
-### 3. RAG & Business Data
-Retrieval-Augmented Generation techniques to ground models in business-specific data sources, improving accuracy and relevance of generated outputs.
+## Déroulé sur 5 jours
 
-### 4. Designing Conversational Bots
-Principles and best practices for designing conversational bots, including dialogue design, context management, and user experience considerations.
+| Jour | Matin | Après-midi |
+|---|---|---|
+| J1 | Ch. 0 Harness (2 h) puis Ch. 1 Fondamentaux | Ch. 1 Fondamentaux — prompt engineering, labs |
+| J2 | Ch. 1 fin — sorties structurées, coût et choix de modèle | Ch. 2 Évaluation |
+| J3 | Ch. 3 RAG — ingestion, découpage, embeddings | Ch. 3 RAG — lab complet et évaluation de la recherche |
+| J4 | Ch. 4 Agents — tool calling, boucle de raisonnement | Ch. 4 Agents — orchestration LangGraph, agentic RAG |
+| J5 | Ch. 5 Conception conversationnelle | Ch. 6 Multicanal, sécurité, gouvernance et restitution du fil rouge |
 
-### 5. Multichannel Integration & Governance
-Deploying conversational AI across multiple channels while addressing governance, compliance, and operational considerations.
+Les chapitres sont préparés et livrés dans l'ordre, une pull request chacun.
 
-### 6. Harness
-Working with the Claude Code harness and related tooling for agentic development workflows.
+## Structure du dépôt
 
-## Status
+```
+chapitres/NN-nom/
+  README.md      objectifs, prérequis, déroulé horaire du chapitre
+  cours.md       le contenu rédigé, autoportant, pour travailler en autonomie
+  slides.md      le support projeté en présentiel (Marp)
+  quiz.md        vérification des acquis
+  labs/          travaux pratiques, chacun avec starter/ et solution/
+commun/
+  llm/           accès au modèle, partagé par tous les labs
+  setup/         installation de l'environnement
+fil-rouge/       énoncé et données du cas fil rouge
+```
 
-This repository is being actively developed. Content and materials for each module will be added progressively.
+Chaque chapitre se lit de deux façons : `cours.md` pour un participant seul, `slides.md`
+pour une session animée. `cours.md` fait foi ; les slides en sont une projection synthétique.
+
+## Démarrer
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r commun/setup/requirements.txt
+pip install -e .
+cp commun/setup/.env.example .env
+```
+
+Renseigner ensuite les accès au modèle dans `.env`, puis vérifier :
+
+```bash
+python commun/setup/check_env.py
+```
+
+Le détail, y compris sous Windows et en cas de problème, est dans
+[commun/setup/README.md](commun/setup/README.md).
+
+## Contribuer
+
+Les conventions d'écriture et le processus de relecture sont décrits dans
+[CONTRIBUTING.md](CONTRIBUTING.md). L'avancement chapitre par chapitre est suivi dans
+[TODO.md](TODO.md).

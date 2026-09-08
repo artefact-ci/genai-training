@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Vector stores and local artefacts produced by the labs
+.chroma/
+data/generated/
+*.sqlite3
+
+# Slides build output
+build/
+*.pdf
+*.pptx
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

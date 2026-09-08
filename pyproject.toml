@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genai-training"
+version = "0.1.0"
+description = "Supports et travaux pratiques de la formation GenAI"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.0",
+    "openai>=1.50",
+]
+
+# Installing the repository in editable mode (`pip install -e .`) is what lets a lab
+# living several directories deep still do `from commun.llm import chat`, without any
+# sys.path juggling in the exercises.
+[tool.setuptools]
+packages = ["commun", "commun.llm"]
+
+[tool.pytest.ini_options]
+testpaths = ["commun", "chapitres"]

@@ -10,6 +10,8 @@ __pycache__/
 venv/
 .pytest_cache/
 .ipynb_checkpoints/
+*.egg-info/
+# uv.lock is versioned on purpose: every participant gets the same environment.
 
 # Vector stores and local artefacts produced by the labs
 .chroma/

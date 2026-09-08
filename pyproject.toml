@@ -7,12 +7,21 @@ name = "genai-training"
 version = "0.1.0"
 description = "Supports et travaux pratiques de la formation GenAI"
 requires-python = ">=3.11"
+
+# Dependencies are managed with uv: add one with `uv add <package>` rather than by
+# editing this list by hand, so that uv.lock stays in step. Each chapter PR adds
+# what it needs here; participants get everything from a single `uv sync`.
 dependencies = [
     "python-dotenv>=1.0",
     "openai>=1.50",
 ]
 
-# Installing the repository in editable mode (`pip install -e .`) is what lets a lab
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+# `uv sync` installs the project itself in editable mode, which is what lets a lab
 # living several directories deep still do `from commun.llm import chat`, without any
 # sys.path juggling in the exercises.
 [tool.setuptools]
@@ -20,3 +29,9 @@ packages = ["commun", "commun.llm"]
 
 [tool.pytest.ini_options]
 testpaths = ["commun", "chapitres"]
+# Tests must run without network or credentials. The few that genuinely need a
+# model are marked `live` and stay out of the default run.
+addopts = "-m 'not live'"
+markers = [
+    "live: reaches a real model; excluded from the default run",
+]

@@ -11,7 +11,7 @@ Une PR de chapitre est complète quand elle contient :
 - `quiz.md` — au moins six questions de vérification
 - `labs/` — au moins un lab avec `starter/` et `solution/`
 - les cases correspondantes cochées dans `TODO.md`
-- les dépendances Python du chapitre ajoutées à `commun/setup/requirements.txt`
+- les dépendances Python du chapitre ajoutées avec `uv add`
 
 Le chapitre `_template/` sert de point de départ : le copier, ne pas le modifier sans
 raison, puisqu'il fixe le format commun.
@@ -65,6 +65,50 @@ Chaque lab est un dossier `labs/NN-nom/` contenant :
 
 Un lab doit tourner sur un poste neuf après le seul `commun/setup`. Les labs n'importent
 jamais un SDK de fournisseur directement : ils passent par `commun.llm` (voir ci-dessous).
+
+## Dépendances
+
+Les dépendances sont gérées avec [uv](https://docs.astral.sh/uv/). `pyproject.toml` en est
+la seule source de vérité et `uv.lock` est versionné, pour que tous les participants
+travaillent sur les mêmes versions.
+
+Une dépendance s'ajoute avec `uv add`, jamais en éditant `pyproject.toml` à la main — sans
+quoi le lock se désynchronise :
+
+```bash
+uv add langgraph
+```
+
+```bash
+uv add --dev pytest-cov
+```
+
+Une PR de chapitre ajoute ses dépendances à `[project.dependencies]`, sans les isoler dans
+un extra : les participants doivent obtenir la totalité de l'environnement en un seul
+`uv sync` le premier jour, plutôt que de découvrir une installation manquante au troisième.
+
+Le lock modifié fait partie du diff, et sa mise à jour est vérifiée en relecture.
+
+## Tests
+
+Les tests sont écrits avec `pytest`, et se lancent depuis la racine :
+
+```bash
+uv run pytest
+```
+
+Ce qu'on attend d'une PR de chapitre :
+
+- le code partagé (`commun/`) est testé ; ses tests vivent à côté de lui, en
+  `test_<module>.py` ;
+- la solution de chaque lab est couverte par au moins un test qui vérifie qu'elle produit
+  le résultat annoncé — c'est ce qui empêche une solution de pourrir silencieusement entre
+  deux sessions ;
+- les tests tournent sans réseau et sans credentials. Les appels au modèle sont simulés,
+  hors du script de vérification d'environnement qui, lui, appelle réellement le modèle
+  puisque c'est son objet.
+
+Un test qui exige un accès au modèle est marqué `@pytest.mark.live` et exclu par défaut.
 
 ## Accès au modèle
 

@@ -53,17 +53,17 @@ pour une session animée. `cours.md` fait foi ; les slides en sont une projectio
 
 ## Démarrer
 
+Les dépendances sont gérées avec [uv](https://docs.astral.sh/uv/).
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r commun/setup/requirements.txt
-pip install -e .
+uv sync
 cp commun/setup/.env.example .env
 ```
 
 Renseigner ensuite les accès au modèle dans `.env`, puis vérifier :
 
 ```bash
-python commun/setup/check_env.py
+uv run python commun/setup/check_env.py
 ```
 
 Le détail, y compris sous Windows et en cas de problème, est dans

@@ -2,7 +2,7 @@
 
 Run this at the start of day one, before anything else:
 
-    python commun/setup/check_env.py
+    uv run python commun/setup/check_env.py
 
 It reports every problem it finds rather than stopping at the first one, so a
 participant can fix them in one pass.
@@ -28,8 +28,8 @@ def _check_imports() -> str | None:
         import commun.llm  # noqa: F401
     except ImportError:
         return (
-            "Cannot import `commun.llm`. Install the repository in editable mode "
-            "from its root: pip install -e ."
+            "Cannot import `commun.llm`. Run `uv sync` from the repository root, "
+            "then run this script with `uv run`."
         )
     return None
 

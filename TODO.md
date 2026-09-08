@@ -1,4 +1,4 @@
-# TODO
+# TODO — Programme de formation en IA générative
 
 Avancement de la préparation, chapitre par chapitre. Chaque chapitre est livré en une PR
 contenant `README.md`, `cours.md`, `slides.md`, `quiz.md` et au moins un lab.
@@ -58,7 +58,7 @@ contenant `README.md`, `cours.md`, `slides.md`, `quiz.md` et au moins un lab.
 - [ ] Embeddings et bases vectorielles
 - [ ] Recherche hybride et reclassement
 - [ ] Évaluation de la recherche et de la fidélité des réponses
-- [ ] Pièges : données périmées, découpage inadapté, bruit de recherche
+- [ ] Pièges : données périmées, découpage inadapté, bruit de recherche, hallucinations, biais
 - [ ] Lab : RAG complet sur les données du fil rouge
 - [ ] Slides
 - [ ] Quiz

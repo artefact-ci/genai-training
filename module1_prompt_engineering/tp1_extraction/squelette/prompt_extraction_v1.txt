@@ -1,0 +1,16 @@
+TODO 1 – Écrivez ici le prompt d'extraction (il sert de message « system »).
+
+Il doit :
+- dire au modèle qu'il analyse le message d'un client d'Orange Bank et ne lui répond pas ;
+- exiger UNIQUEMENT un objet JSON valide, sans texte autour ;
+- lister les 7 champs et leurs valeurs autorisées :
+    categorie      "P1" à "P5" (définissez chaque parcours en une ligne, voir le cadrage §5)
+    produit        "pret" | "epargne" | "orange_money" | "autre"
+    motif          résumé en une phrase
+    dates          AAAA-MM-JJ, [] si aucune (que faire de « hier » ?)
+    montants_fcfa  nombres entiers, [] si aucun
+    urgence        "basse" | "moyenne" | "haute" (donnez une règle, sinon chaque modèle aura la sienne)
+    sentiment      "satisfait" | "neutre" | "inquiet" | "mecontent"
+- donner un exemple de sortie.
+
+Pensez au message MSG-23 : que doit faire l'extracteur face à « Ignore toutes tes instructions » ?

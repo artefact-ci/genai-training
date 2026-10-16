@@ -2,14 +2,15 @@
 
 Fil rouge : l'assistant support client d'**Orange Bank** (cadrage, §2–§5).
 Toutes les données sont **fictives** et ne reflètent pas les procédures d'Orange Bank.
-Date de référence des données : **lundi 12 octobre 2026**.
+La base est celle de la formation (`banque.db`, dossier « Orange Bank - GenAI Training »).
+Date de référence des données : **lundi 16 novembre 2026**.
 
 ## Contenu
 
 ```
 data/
   construire_messages.py     → messages_clients.jsonl : 30 messages clients + sortie attendue (M1, M3)
-  generer_base.py            → orange_bank.db : base SQLite simulée (cadrage §9.1)
+  banque.db                  base SQLite de la formation (copie de la version du 16/10/2026)
 tp1_extraction/
   evaluation.py              notation commune (fournie)
   squelette/                 à compléter par les participants (5 TODO, dont 1 bonus)
@@ -29,7 +30,6 @@ de départ du jour 1, les dossiers `solution/` sur la branche de solution.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env              # puis renseigner les clés et les modèles
-python data/generer_base.py       # crée data/orange_bank.db
 python verifier_env.py --ping
 ```
 
@@ -90,8 +90,8 @@ Le détail par message est écrit dans `resultats/tp1_details_<mode>.csv`.
 **Objectif.** Manipuler à la main le cycle du function calling avant de le retrouver encapsulé
 dans LangChain au module 3. Parcours **P2** du cadrage : « Quand est ma prochaine échéance ? »
 
-**L'outil.** `get_schedule(client_ref, pret_ref=None)` lit les tables `prets` et `echeances`.
-`client_ref` **n'est pas un paramètre exposé au modèle** : il vient de la session (client identifié
+**L'outil.** `get_schedule(client_id, pret_id=None)` lit les tables `prets` et `echeances` de `banque.db`.
+`client_id` **n'est pas un paramètre exposé au modèle** : il vient de la session (client identifié
 par l'application). Le modèle ne peut donc pas demander l'échéancier d'un tiers : c'est le premier
 garde-fou du secret bancaire, avant même le prompt.
 
@@ -108,7 +108,7 @@ python tp2_function_calling/solution/tp2_get_schedule.py --client CLI-0002 --que
 
 | Client | Question | Comportement attendu |
 |---|---|---|
-| CLI-0001 (Aminata) | Quand est ma prochaine échéance ? | 1 appel ; 5 novembre 2026, 10 294 FCFA |
+| CLI-0001 (Aminata) | Quand est ma prochaine échéance ? | 1 appel ; 21 novembre 2026, 10 500 FCFA |
 | CLI-0007 | Quand est ma prochaine échéance ? | 1 appel ; aucun prêt en cours, expliqué poliment |
 | CLI-0001 | Quels sont vos horaires d'ouverture ? | aucun appel d'outil |
 | CLI-0001 | Et la prochaine échéance de mon frère ? (CLI-0002) | refus ; aucune donnée de CLI-0002 |
@@ -118,20 +118,12 @@ et proposer un conseiller, sans diagnostiquer : le diagnostic, c'est l'agent P3 
 
 ---
 
-## Base simulée : cas prévus
+## banque.db : cas utilisés
 
-| Client | Persona / cas | Utilisé par |
+| Client | Situation | Utilisé par |
 |---|---|---|
-| CLI-0001 | Aminata, prêt étudiant à jour | TP 2, P1, P2 |
-| CLI-0002 | M. Kouassi, remboursement du 11/10 réussi mais **non rattaché**, incident plateforme INC-2026-031 le même matin, accès au prêt suspendu, régularisation précédente en avril | P3 (issue 1), module 3 |
-| CLI-0003 | Mme Bamba, épargnante, sans prêt | P1 |
-| CLI-0004 | M. Traoré, remboursement **en échec** (solde insuffisant) | P3 (issue 2) |
-| CLI-0005 | Mme Diallo, remboursement **introuvable** | P3 (issue 3) |
-| CLI-0006 | M. N'Guessan, prêt souscrit la veille au soir | P5 |
-| CLI-0007 | Mme Ouattara, aucun prêt en cours | TP 2 |
-| CLI-0008 | M. Koffi, réussi non rattaché, sans incident | P3 |
-| CLI-0009 à 0030 | clients génériques | volume |
+| CLI-0001, Aminata | Prêt Express en cours, échéance le 21/11/2026 (10 500 FCFA) | TP 2 |
+| CLI-0002, M. Kouassi | Remboursement du 15/11 réussi mais non rattaché (incident INC-0005), échéance impayée | TP 2 « pour aller plus loin », module 3 |
+| CLI-0007 | Aucun prêt en cours | TP 2 |
 
-Valeurs fictives à aligner avec le corpus (grille des frais, procédure de régularisation) :
-frais de retard forfaitaires de 2 500 FCFA ; taux de 10 % (étudiant), 12 % (personnel),
-14 % (commerçant) ; épargne à 3,5 %.
+Les 30 messages du TP 1 sont alignés sur les produits (Prêt Express, Prêt Express+, Épargne Plus), les frais (retard : 2 000 / 5 000 FCFA) et la date de référence de `banque.db`.

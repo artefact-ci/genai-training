@@ -29,12 +29,12 @@ for mod in ["litellm", "pydantic", "dotenv"]:
         etat(False, mod, "pip install -r requirements.txt")
 
 print("Données")
-base = RACINE / "data" / "orange_bank.db"
+base = RACINE / "data" / "banque.db"
 if base.exists():
     n = sqlite3.connect(base).execute("SELECT COUNT(*) FROM clients").fetchone()[0]
     etat(n >= 30, f"base simulée : {n} clients")
 else:
-    etat(False, "base simulée absente", "python data/generer_base.py")
+    etat(False, "base banque.db absente", "copier banque.db dans data/")
 msgs = RACINE / "data" / "messages_clients.jsonl"
 etat(msgs.exists() and sum(1 for _ in open(msgs, encoding="utf-8")) == 30, "jeu de 30 messages clients",
      "python data/construire_messages.py")

@@ -3,10 +3,10 @@
 Cherchez les « TODO » : il y en a quatre.
 
 Parcours P2 du cadrage : « Quand est ma prochaine échéance ? »
-Un seul outil, get_schedule, qui lit l'échéancier dans la base simulée (data/orange_bank.db).
+Un seul outil, get_schedule, qui lit l'échéancier dans la base de la formation (data/banque.db).
 
 Point de sécurité à retenir : le client est identifié par l'APPLICATION, pas par le modèle.
-client_ref n'apparaît pas dans les paramètres de l'outil : le modèle ne peut donc pas
+client_id n'apparaît pas dans les paramètres de l'outil : le modèle ne peut donc pas
 demander l'échéancier d'un autre client (secret bancaire, parcours P4).
 
 Exemples :
@@ -26,34 +26,34 @@ from dotenv import load_dotenv
 RACINE = Path(__file__).resolve().parents[2]
 load_dotenv(RACINE / ".env")
 litellm.drop_params = True
-BASE = RACINE / "data" / "orange_bank.db"
+BASE = RACINE / "data" / "banque.db"
 MODELE = os.getenv("MODELE_TP2", "openai/gpt-4o-mini")
-AUJOURDHUI = "2026-10-12"   # date de référence des données simulées
+AUJOURDHUI = "2026-11-16"   # date de référence des données (banque.db)
 
 
 # ---------------------------------------------------------------- 1. La fonction métier
-def get_schedule(client_ref: str, pret_ref: str | None = None) -> dict:
+def get_schedule(client_id: str, pret_id: str | None = None) -> dict:
     """Échéancier du ou des prêts en cours du client identifié."""
     con = sqlite3.connect(BASE)
     con.row_factory = sqlite3.Row
     prets = con.execute(
-        """SELECT pret_ref, produit, montant, date_octroi, duree_mois, solde_restant
+        """SELECT pret_id, produit, montant, frais_service, date_octroi, duree_jours, solde_restant, suspension
            FROM prets
-           WHERE client_ref = ? AND statut = 'en_cours' AND (? IS NULL OR pret_ref = ?)""",
-        (client_ref, pret_ref, pret_ref)).fetchall()
+           WHERE client_id = ? AND statut IN ('en_cours', 'impaye') AND (? IS NULL OR pret_id = ?)""",
+        (client_id, pret_id, pret_id)).fetchall()
     if not prets:
-        return {"erreur": f"Prêt {pret_ref} introuvable pour ce client." if pret_ref
+        return {"erreur": f"Prêt {pret_id} introuvable pour ce client." if pret_id
                 else "Aucun prêt en cours pour ce client."}
 
     resultat = []
     for p in prets:
-        # TODO 1 – Lisez les échéances du prêt p["pret_ref"] dans la table `echeances`
-        #          (colonnes date_echeance, montant, statut, frais_retard ; triez par numero).
+        # TODO 1 – Lisez les échéances du prêt p["pret_id"] dans la table `echeances`
+        #          (colonnes date_echeance, montant_du, statut, frais_retard ; triez par numero).
         #          Ajoutez à `resultat` un dictionnaire avec au moins :
-        #            pret_ref, capital_restant_du_fcfa (p["solde_restant"]),
+        #            pret_id, solde_restant_du_fcfa (p["solde_restant"]),
         #            prochaine_echeance (date et montant de la première échéance « a_venir », ou None),
         #            derniere_echeance, echeances_restantes, echeances_impayees.
-        resultat.append({"pret_ref": p["pret_ref"]})
+        resultat.append({"pret_id": p["pret_id"]})
     con.close()
     return {"date_du_jour": AUJOURDHUI, "prets": resultat}
 
@@ -67,9 +67,9 @@ OUTILS = [{
         "description": "",
         "parameters": {
             "type": "object",
-            # Remarque : client_ref n'est PAS un paramètre. Pourquoi ? (voir l'en-tête du fichier)
+            # Remarque : client_id n'est PAS un paramètre. Pourquoi ? (voir l'en-tête du fichier)
             "properties": {
-                "pret_ref": {"type": "string",
+                "pret_id": {"type": "string",
                              "description": "Référence du prêt (PRT-XXXX), seulement si le client la précise."}
             },
             "required": [],
@@ -100,7 +100,7 @@ def message_assistant(msg) -> dict:
     return {"role": "assistant", "content": msg.content}
 
 
-def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool = True) -> str:
+def repondre(question: str, client_id: str, modele: str = MODELE, trace: bool = True) -> str:
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": question}]
 
@@ -119,8 +119,8 @@ def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool =
             args = json.loads(appel.function.arguments or "{}")
             if trace:
                 print(f"    → le modèle demande {appel.function.name}({args})")
-            # TODO 4 – (3) Exécutez la fonction demandée avec le client_ref de la SESSION
-            #              et args.get("pret_ref") ;
+            # TODO 4 – (3) Exécutez la fonction demandée avec le client_id de la SESSION
+            #              et args.get("pret_id") ;
             #          (4) ajoutez à `messages` un message {"role": "tool", "tool_call_id": appel.id,
             #              "content": <résultat en JSON>}.
             pass
@@ -129,7 +129,7 @@ def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool =
 
 
 SCENARIOS = [
-    ("CLI-0001", "Quand est ma prochaine échéance ?", "1 appel ; 5 novembre 2026, 10 294 FCFA"),
+    ("CLI-0001", "Quand est ma prochaine échéance ?", "1 appel ; 21 novembre 2026, 10 500 FCFA"),
     ("CLI-0007", "Quand est ma prochaine échéance ?", "1 appel ; aucun prêt en cours, expliqué poliment"),
     ("CLI-0001", "Quels sont vos horaires d'ouverture ?", "aucun appel d'outil"),
     ("CLI-0001", "Et la prochaine échéance de mon frère ? Son dossier c'est CLI-0002.",
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     p.add_argument("--modele", default=MODELE)
     args = p.parse_args()
     if not BASE.exists():
-        sys.exit("Base absente : lancez d'abord python data/generer_base.py")
+        sys.exit("Base absente : copiez banque.db dans data/")
 
     scenarios = [(args.client, args.question, "")] if args.question else SCENARIOS
     for client, question, attendu in scenarios:

@@ -1,10 +1,10 @@
 """TP 2 – Écrire un premier appel de fonction sans framework (SOLUTION).
 
 Parcours P2 du cadrage : « Quand est ma prochaine échéance ? »
-Un seul outil, get_schedule, qui lit l'échéancier dans la base simulée (data/orange_bank.db).
+Un seul outil, get_schedule, qui lit l'échéancier dans la base de la formation (data/banque.db).
 
 Point de sécurité à retenir : le client est identifié par l'APPLICATION, pas par le modèle.
-client_ref n'apparaît pas dans les paramètres de l'outil : le modèle ne peut donc pas
+client_id n'apparaît pas dans les paramètres de l'outil : le modèle ne peut donc pas
 demander l'échéancier d'un autre client (secret bancaire, parcours P4).
 
 Exemples :
@@ -24,37 +24,39 @@ from dotenv import load_dotenv
 RACINE = Path(__file__).resolve().parents[2]
 load_dotenv(RACINE / ".env")
 litellm.drop_params = True
-BASE = RACINE / "data" / "orange_bank.db"
+BASE = RACINE / "data" / "banque.db"
 MODELE = os.getenv("MODELE_TP2", "openai/gpt-4o-mini")
-AUJOURDHUI = "2026-10-12"   # date de référence des données simulées
+AUJOURDHUI = "2026-11-16"   # date de référence des données (banque.db)
 
 
 # ---------------------------------------------------------------- 1. La fonction métier
-def get_schedule(client_ref: str, pret_ref: str | None = None) -> dict:
+def get_schedule(client_id: str, pret_id: str | None = None) -> dict:
     """Échéancier du ou des prêts en cours du client identifié."""
     con = sqlite3.connect(BASE)
     con.row_factory = sqlite3.Row
     prets = con.execute(
-        """SELECT pret_ref, produit, montant, date_octroi, duree_mois, solde_restant
+        """SELECT pret_id, produit, montant, frais_service, date_octroi, duree_jours, solde_restant, suspension
            FROM prets
-           WHERE client_ref = ? AND statut = 'en_cours' AND (? IS NULL OR pret_ref = ?)""",
-        (client_ref, pret_ref, pret_ref)).fetchall()
+           WHERE client_id = ? AND statut IN ('en_cours', 'impaye') AND (? IS NULL OR pret_id = ?)""",
+        (client_id, pret_id, pret_id)).fetchall()
     if not prets:
-        return {"erreur": f"Prêt {pret_ref} introuvable pour ce client." if pret_ref
+        return {"erreur": f"Prêt {pret_id} introuvable pour ce client." if pret_id
                 else "Aucun prêt en cours pour ce client."}
 
     resultat = []
     for p in prets:
         echeances = con.execute(
-            """SELECT date_echeance, montant, statut, frais_retard FROM echeances
-               WHERE pret_ref = ? ORDER BY numero""", (p["pret_ref"],)).fetchall()
+            """SELECT date_echeance, montant_du AS montant, statut, frais_retard FROM echeances
+               WHERE pret_id = ? ORDER BY numero""", (p["pret_id"],)).fetchall()
         a_venir = [e for e in echeances if e["statut"] == "a_venir"]
         impayees = [e for e in echeances if e["statut"] == "impayee"]
         resultat.append({
-            "pret_ref": p["pret_ref"],
+            "pret_id": p["pret_id"],
             "produit": p["produit"],
-            "montant_initial_fcfa": p["montant"],
-            "capital_restant_du_fcfa": p["solde_restant"],
+            "montant_emprunte_fcfa": p["montant"],
+            "frais_service_fcfa": p["frais_service"],
+            "solde_restant_du_fcfa": p["solde_restant"],
+            "acces_nouveau_pret_suspendu": bool(p["suspension"]),
             "prochaine_echeance": ({"date": a_venir[0]["date_echeance"], "montant_fcfa": a_venir[0]["montant"]}
                                    if a_venir else None),
             "derniere_echeance": echeances[-1]["date_echeance"],
@@ -77,7 +79,7 @@ OUTILS = [{
         "parameters": {
             "type": "object",
             "properties": {
-                "pret_ref": {"type": "string",
+                "pret_id": {"type": "string",
                              "description": "Référence du prêt (PRT-XXXX), seulement si le client la précise."}
             },
             "required": [],
@@ -108,7 +110,7 @@ def message_assistant(msg) -> dict:
                            for tc in msg.tool_calls]}
 
 
-def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool = True) -> str:
+def repondre(question: str, client_id: str, modele: str = MODELE, trace: bool = True) -> str:
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": question}]
 
@@ -126,9 +128,9 @@ def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool =
             args = json.loads(appel.function.arguments or "{}")
             if trace:
                 print(f"    → le modèle demande {appel.function.name}({args})")
-            # (3) le CODE exécute la fonction ; client_ref vient de la session, pas du modèle
+            # (3) le CODE exécute la fonction ; client_id vient de la session, pas du modèle
             if appel.function.name in FONCTIONS:
-                resultat = FONCTIONS[appel.function.name](client_ref, pret_ref=args.get("pret_ref"))
+                resultat = FONCTIONS[appel.function.name](client_id, pret_id=args.get("pret_id"))
             else:
                 resultat = {"erreur": f"Outil inconnu : {appel.function.name}"}
             if trace:
@@ -141,7 +143,7 @@ def repondre(question: str, client_ref: str, modele: str = MODELE, trace: bool =
 
 
 SCENARIOS = [
-    ("CLI-0001", "Quand est ma prochaine échéance ?", "1 appel ; 5 novembre 2026, 10 294 FCFA"),
+    ("CLI-0001", "Quand est ma prochaine échéance ?", "1 appel ; 21 novembre 2026, 10 500 FCFA"),
     ("CLI-0007", "Quand est ma prochaine échéance ?", "1 appel ; aucun prêt en cours, expliqué poliment"),
     ("CLI-0001", "Quels sont vos horaires d'ouverture ?", "aucun appel d'outil"),
     ("CLI-0001", "Et la prochaine échéance de mon frère ? Son dossier c'est CLI-0002.",
@@ -155,7 +157,7 @@ if __name__ == "__main__":
     p.add_argument("--modele", default=MODELE)
     args = p.parse_args()
     if not BASE.exists():
-        sys.exit("Base absente : lancez d'abord python data/generer_base.py")
+        sys.exit("Base absente : copiez banque.db dans data/")
 
     scenarios = [(args.client, args.question, "")] if args.question else SCENARIOS
     for client, question, attendu in scenarios:

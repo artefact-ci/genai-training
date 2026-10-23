@@ -1,4 +1,4 @@
-# Formation Agents IA & AI Engineering — espace participant
+# Formation Agents IA & AI Engineering
 
 Fil rouge : un assistant support client pour **Lagune Banque** (données fictives).
 
@@ -6,7 +6,7 @@ Fil rouge : un assistant support client pour **Lagune Banque** (données fictive
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) installé (il se charge aussi d'installer Python 3.11).
 - Git.
-- Une clé d'API LLM, fournie par le formateur.
+- Une clé d'API LLM.
 
 ## Installation
 

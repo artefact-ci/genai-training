@@ -6,7 +6,7 @@
   {"id": 5, "categorie": "autre", "reference_transaction": null, "montant_fcfa": null, "demande": "information", "sentiment": "neutre"},
   {"id": 6, "categorie": "probleme_compte", "reference_transaction": null, "montant_fcfa": null, "demande": "assistance", "sentiment": "mecontent"},
   {"id": 7, "categorie": "facturation", "reference_transaction": null, "montant_fcfa": 2500, "demande": "remboursement", "sentiment": "mecontent"},
-  {"id": 8, "categorie": "carte_bancaire", "reference_transaction": null, "montant_fcfa": null, "demande": "assistance", "sentiment": "satisfait"},
+  {"id": 8, "categorie": "carte_bancaire", "reference_transaction": null, "montant_fcfa": null, "demande": "information", "sentiment": "satisfait"},
   {"id": 9, "categorie": "probleme_compte", "reference_transaction": null, "montant_fcfa": null, "demande": "information", "sentiment": "neutre"},
   {"id": 10, "categorie": "probleme_virement", "reference_transaction": "VIR-52390", "montant_fcfa": 15000, "demande": "regularisation_virement", "sentiment": "mecontent"}
 ]

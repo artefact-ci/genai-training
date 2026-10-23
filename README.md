@@ -2,25 +2,25 @@
 
 Le programme de formation couvre les fondamentaux et l'application pratique de la GenAI, des concepts fondamentaux aux systèmes conversationnels prêts pour la mise en production.
 
-## Plan du programme
+### Module 1 : Fondamentaux GenAI & Prompt Engineering
+- **Théorie :** LLM, tokens, prompting (zero/few-shot, CoT), limites et biais, coûts et finOps
+- **Pratique :** Écrire et itérer des prompts sur cas réels, comparer modèles
 
-### 1. Fondamentaux — GenAI & Prompt Engineering
-Concepts fondamentaux de la GenAI et des Large Language Models (LLM), ainsi que les techniques de prompt engineering pour concevoir des prompts efficaces et fiables.
+### Module 2 : Agents IA avec LangChain/LangGraph (bots conversationnels)
+- **Théorie :** Architecture agent, outils, mémoire, orchestration multi-étapes
+- **Pratique :** Construire un agent simple avec outils et boucle de raisonnement
 
-### 2. AI Agents avec LangChain / LangGraph
-Construction d'agents autonomes et semi-autonomes en utilisant LangChain et LangGraph, couvrant l'utilisation d'outils, l'orchestration et les workflows de raisonnement multi-étapes.
+### Module 3 : RAG & données métier (Chat with my data)
+- **Théorie :** Embeddings, vector DB, chunking, pipelines de retrieval
+- **Pratique :** Implémenter un RAG sur un corpus métier
 
-### 3. RAG & Business Data
-Techniques de Retrieval-Augmented Generation (RAG) pour contextualiser les modèles avec des données métier, améliorant la précision et la pertinence des résultats générés.
+### Module 4 : Accessibilité (MCP, A2A...)
+- **Théorie :** Présentation des principaux protocoles (MCP, A2A)
+- **Pratique :** Connecter un agent existant à une source de données via un serveur MCP, démonstration d'une communication agent-à-agent
 
-### 4. Conception de Bots Conversationnels
-Principes et bonnes pratiques pour concevoir des chatbots, y compris la conception du dialogue, la gestion du contexte l'expérience utilisateur.
-
-### 5. Intégration Multicanal & Gouvernance
-Déploiement de chatbots et agents IA sur de multiples canaux en traitant les questions de gouvernance, conformité et l'opérationnel.
-
-### 6. Harness
-Prise en main du harness Claude Code et de son écosystème d'outils pour créer des workflows de dev agentiques.
+### Module 5 : Intégration multicanal & gouvernance
+- **Théorie :** WhatsApp Business API, Messenger, Telegram, sécurité et conformité des agents en prod couts/finops
+- **Pratique :** Déployer le bot sur au moins un canal, capstone final
 
 ## Statut
 

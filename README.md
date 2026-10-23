@@ -25,3 +25,41 @@ Prise en main du harness Claude Code et de son écosystème d'outils pour créer
 ## Statut
 
 Ce dépôt est en développement actif. Le contenu et les matériaux pour chaque module seront ajoutés progressivement.
+
+## Usage formateur
+
+Ce dépôt contient la formation « Agents IA & AI Engineering » ; le fil rouge est un assistant
+support client pour Lagune Banque (données fictives). La seule branche durable est `main` :
+chaque module est ajouté sur sa propre branche, puis fusionné.
+
+### Les deux dossiers
+
+- `starter/` : ce que les participants clonent (sparse checkout). Projet `uv` (Python 3.11),
+  démos, TP et code de départ.
+- `solutions/` : réservé au formateur (solutions des TP, scripts de contrôle).
+  Les participants ne le récupèrent pas.
+
+### Règle de nommage
+
+Le notebook participant `mN/…/tpN.ipynb` de `starter/` a son équivalent `tpN_solution.ipynb`
+dans `solutions/mN/` (ex. `starter/m1/tp1_extraction_json/tp1.ipynb` ↔
+`solutions/m1/tp1_solution.ipynb`).
+
+### Vérifier les notebooks (la veille de la formation)
+
+Depuis `starter/` :
+
+```bash
+uv sync
+uv run python ../solutions/scripts/check_notebooks.py
+```
+
+Le script exécute chaque notebook de `solutions/` et de `starter/*/demos/` dans un dossier
+temporaire (les fichiers ne sont pas modifiés), affiche un tableau OK / ÉCHEC et retourne un
+code d'erreur si l'un échoue. À lancer **la veille** de la formation.
+
+### Règle d'autonomie des modules
+
+Chaque dossier `starter/mN/` doit être **autonome** : il contient le code de départ du module
+(par exemple l'index RAG et les outils du module 2 dans `m3/`). Ainsi, un binôme en retard
+repart du module suivant sans dépendre de ce qui devait être fait la veille.

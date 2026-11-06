@@ -1,0 +1,228 @@
+"""Passerelle : tout ce qui est commun à tous les canaux, entre un adaptateur et le cœur de l'agent.
+
+Un adaptateur de canal fait deux choses seulement : transformer un message entrant en `Message`, et envoyer un texte.
+La passerelle gère le reste : doublons, limite de débit, un traitement à la fois par utilisateur, identification
+par commande (formation), commandes, validation conseiller. Ajouter un canal ne change donc ni la passerelle ni l'agent.
+"""
+import asyncio
+import json
+import os
+import re
+import time
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Optional, Protocol
+
+from tools import connect
+
+import monitoring
+from assistant import Assistant
+
+AIDE_IDENTIFICATION = ("Pour commencer, identifiez-vous : envoyez /client suivi de votre "
+                       "identifiant, par exemple /client CLI-0002. En production, le canal ne prouve pas qui vous êtes : "
+                       "une authentification réelle est nécessaire.")
+
+
+@dataclass
+class Message:
+    """Un message entrant, quel que soit le canal."""
+    channel: str
+    user: str               # identifiant propre au canal (numéro WhatsApp)
+    text: str
+    id: str = ""            # identifiant du message chez le canal, pour écarter les doublons
+
+
+class Channel(Protocol):
+    """Ce qu'un canal fournit à la passerelle : un nom et une méthode d'envoi."""
+    nom: str
+
+    async def send(self, utilisateur: str, texte: str) -> None: ...
+
+
+def _digits(numero: str) -> str:
+    """Le numéro réduit à ses chiffres, sans le préfixe international « 00 » : WhatsApp envoie 2250799001234 pour +225 07 99 00 12 34 ou 00225 07 99 00 12 34."""
+    return re.sub(r"^0+", "", re.sub(r"\D", "", numero))
+
+
+class Gateway:
+    """Relie les canaux ({nom: canal}) à l'assistant."""
+
+    def __init__(self, assistant: Assistant, channels: dict[str, Channel]):
+        self.assistant = assistant
+        self.channels = channels
+        self.metrics = monitoring.Metrics()
+        self.identities: dict[tuple[str, str], str] = {}          # (canal, utilisateur) -> client_id
+        self.sessions: dict[tuple[str, str], int] = defaultdict(int)   # compteur de /reset
+        self.validations: dict[str, dict] = {}                     # session_id -> dossier en attente
+        self.handoffs: dict[str, dict] = {}                        # référence de réclamation -> dossier transmis
+        self.taken_over: dict[tuple[str, str], str] = {}           # (canal, utilisateur) -> dossier pris par un conseiller
+        self.max_per_hour = int(os.getenv("MAX_MSG_PER_HOUR") or 30)
+        self.identify_by_command = os.getenv("IDENTIFICATION_PAR_COMMANDE", "1") == "1"
+        self._seen: set[str] = set()
+        self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._usage: dict[str, list[float]] = defaultdict(list)
+        for numero, client in json.loads(os.getenv("IDENTITES") or "{}").items():   # ex. {"2250700000000": "CLI-0002"}
+            self.identities[("whatsapp", _digits(numero))] = client
+
+    # ------------------------------------------------------------ identification
+    def identify(self, msg: Message) -> Optional[str]:
+        """Le client de l'expéditeur : identité connue, numéro WhatsApp d'un client, sinon CLIENT_PAR_DEFAUT (formation)."""
+        cle = (msg.channel, msg.user)
+        if cle in self.identities:
+            return self.identities[cle]
+        if msg.channel == "whatsapp":                              # le numéro d'un client Lagune Money
+            with connect() as con:
+                for client_id, tel in con.execute("SELECT client_id, telephone_om FROM clients"):
+                    if _digits(tel) == _digits(msg.user):
+                        return client_id
+        return os.getenv("CLIENT_PAR_DEFAUT") or None             # formation : tout expéditeur inconnu est ce client
+
+    def _session(self, msg: Message) -> str:
+        return f"{msg.channel}:{msg.user}:{self.sessions[(msg.channel, msg.user)]}"
+
+    def _rate_limited(self, utilisateur: str) -> bool:
+        """True si l'utilisateur a déjà envoyé MAX_MSG_PER_HOUR messages dans l'heure."""
+        maintenant = time.time()
+        self._usage[utilisateur] = [t for t in self._usage[utilisateur] if maintenant - t < 3600]
+        if len(self._usage[utilisateur]) >= self.max_per_hour:
+            return True
+        self._usage[utilisateur].append(maintenant)
+        return False
+
+    # ------------------------------------------------------------ traitement d'un message
+    async def handle(self, msg: Message) -> None:
+        """Traite un message entrant et envoie la réponse dans son canal."""
+        if msg.id:
+            if msg.id in self._seen:                               # le canal peut renvoyer un même message
+                return
+            self._seen.add(msg.id)
+            if len(self._seen) > 5000:
+                self._seen.clear()
+        canal = self.channels[msg.channel]
+        if self._rate_limited(f"{msg.channel}:{msg.user}"):
+            return await canal.send(msg.user, "Vous avez atteint la limite de messages pour cette heure. Réessayez plus tard.")
+
+        texte = msg.text.strip()
+        async with self._locks[f"{msg.channel}:{msg.user}"]:            # un seul traitement à la fois par utilisateur
+            commande = re.match(r"^/(\w+)\s*(.*)$", texte)
+            if commande:
+                return await canal.send(msg.user, self._command(msg, commande.group(1).lower(), commande.group(2).strip()))
+            client_id = self.identify(msg)
+            if client_id is None:
+                if msg.channel == "whatsapp":                    # le numéro exact à copier dans IDENTITES
+                    print(f"Numéro WhatsApp inconnu : {msg.user}. Pour l'identifier, ajoutez-le dans IDENTITES (.env).")
+                return await canal.send(msg.user, AIDE_IDENTIFICATION)
+            prise = self.taken_over.get((msg.channel, msg.user))
+            if prise:                                            # un conseiller a la main : l'assistant ne répond pas
+                self.handoffs[prise]["messages"].append({"de": "client", "texte": texte, "heure": time.strftime("%H:%M")})
+                self.assistant.history.add(msg.user, "client", texte)
+                return
+            session = self._session(msg)
+            if session in self.validations:
+                return await canal.send(msg.user, "Votre demande est en cours de validation par un conseiller. "
+                                                 "Je vous écris dès qu'il a décidé.")
+            deja = self._claims(client_id)
+            try:
+                rep = await asyncio.to_thread(self.assistant.reply, session, client_id, texte, msg.user)
+            except Exception as e:                                 # le client ne voit jamais une trace d'erreur
+                print("Erreur agent :", repr(e))
+                return await canal.send(msg.user, "Un incident technique m'empêche de répondre. Réessayez dans un instant "
+                                                 "ou écrivez « conseiller ».")
+            self.metrics.record(rep.category, rep.bilan, rep.transfert, rep.bloque)
+            if rep.validation:
+                self.validations[session] = {"session": session, "canal": msg.channel, "utilisateur": msg.user,
+                                             "client_id": client_id, "dossier": rep.validation,
+                                             "recu_le": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            for ref, dossier in self._claims(client_id).items():         # dossiers créés pendant ce tour : handoffs
+                if ref not in deja:
+                    self.handoffs[ref] = {"reference": ref, "session": session, "canal": msg.channel, "utilisateur": msg.user,
+                                          "client_id": client_id, "dossier": dossier, "recu_le": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                          "statut": "nouveau", "conseiller": None,
+                                          "messages": [{"de": role, "texte": c, "heure": ""} for role, c in
+                                                       self.assistant.history.messages(msg.user)[-6:]]}
+            await canal.send(msg.user, rep.texte)
+
+    def _command(self, msg: Message, nom: str, argument: str) -> str:
+        """Commandes /start, /reset et /client : renvoie le texte à envoyer."""
+        if nom == "start":
+            return "Bonjour ! " + AIDE_IDENTIFICATION if self.identify(msg) is None else "Bonjour ! Posez votre question."
+        if nom == "reset":
+            self.sessions[(msg.channel, msg.user)] += 1
+            self.assistant.forget(msg.user)
+            return "C'est fait : nouvelle conversation."
+        if nom == "client":
+            if not self.identify_by_command:
+                return "L'identification par commande est désactivée."
+            with connect() as con:
+                existe = con.execute("SELECT 1 FROM clients WHERE client_id = ?", (argument.upper(),)).fetchone()
+            if not existe:
+                return "Identifiant inconnu. Format attendu : CLI-0002."
+            self.identities[(msg.channel, msg.user)] = argument.upper()
+            return f"Identifié : {argument.upper()} . Que puis-je faire pour vous ?"
+        return "Commande inconnue."
+
+    # ------------------------------------------------------------ côté conseiller
+    def _claims(self, client_id: str) -> dict[str, dict]:
+        """Les réclamations du client dans la base : référence -> dossier."""
+        with connect() as con:
+            lignes = con.execute("SELECT reclamation_id, dossier_json FROM reclamations WHERE client_id = ?", (client_id,)).fetchall()
+        return {ref: json.loads(d) for ref, d in lignes}
+
+    def open_handoffs(self) -> list[dict]:
+        """Les dossiers transmis par l'assistant : nouveaux, ou pris en charge par un conseiller."""
+        return list(self.handoffs.values())
+
+    def _handoff(self, reference: str) -> dict:
+        if reference not in self.handoffs:
+            raise LookupError("Aucun dossier transmis avec cette référence.")
+        return self.handoffs[reference]
+
+    async def _write(self, dossier: dict, texte: str) -> None:
+        """Message du conseiller : envoyé dans le canal, gardé dans le dossier et dans la mémoire de la conversation."""
+        await self.channels[dossier["canal"]].send(dossier["utilisateur"], texte)
+        self.assistant.history.add(dossier["utilisateur"], "assistant", texte)
+        dossier["messages"].append({"de": "conseiller", "texte": texte, "heure": time.strftime("%H:%M")})
+
+    async def take_over(self, reference: str, conseiller: str) -> str:
+        """Le conseiller prend la main : l'assistant se tait et les messages du client lui arrivent."""
+        dossier = self._handoff(reference)
+        dossier["statut"], dossier["conseiller"] = "en_cours", conseiller
+        self.taken_over[(dossier["canal"], dossier["utilisateur"])] = reference
+        with connect() as con:
+            con.execute("UPDATE reclamations SET statut = 'en_cours' WHERE reclamation_id = ?", (reference,))
+        texte = f"Un conseiller de Lagune Banque prend la suite de votre demande (dossier {reference}). Vous pouvez lui écrire ici."
+        await self._write(dossier, texte)
+        return texte
+
+    async def advisor_message(self, reference: str, texte: str) -> None:
+        """Un message écrit par le conseiller, envoyé au client."""
+        dossier = self._handoff(reference)
+        if dossier["statut"] != "en_cours":
+            raise LookupError("Prenez d'abord le dossier en charge.")
+        await self._write(dossier, texte)
+
+    async def close_handoff(self, reference: str) -> str:
+        """Le conseiller termine l'échange : le dossier est clos et l'assistant reprend la conversation."""
+        dossier = self._handoff(reference)
+        texte = "Votre échange avec le conseiller est terminé. L'assistant de Lagune Banque reste à votre disposition ici."
+        await self._write(dossier, texte)
+        self.taken_over.pop((dossier["canal"], dossier["utilisateur"]), None)
+        del self.handoffs[reference]
+        with connect() as con:
+            con.execute("UPDATE reclamations SET statut = 'close' WHERE reclamation_id = ?", (reference,))
+        return texte
+
+    def pending(self) -> list[dict]:
+        """Les dossiers en attente de la décision d'un conseiller."""
+        return list(self.validations.values())
+
+    async def decide(self, session: str, approuve: bool, conseiller: str, motif: str = "") -> str:
+        """Le conseiller décide : l'agent reprend, et le client reçoit la suite dans son canal."""
+        attente = self.validations.get(session)
+        if attente is None:
+            raise LookupError("Aucune validation en attente pour cette session.")
+        rep = await asyncio.to_thread(self.assistant.decide, session, attente["client_id"], approuve, conseiller, motif)
+        del self.validations[session]
+        self.metrics.record(rep.category, rep.bilan, False, rep.bloque)
+        await self.channels[attente["canal"]].send(attente["utilisateur"], rep.texte)
+        return rep.texte
